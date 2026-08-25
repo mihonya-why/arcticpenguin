@@ -1,0 +1,605 @@
+#!/usr/bin/env bash
+# sysgreet — кастомное приветствие для терминала
+# Собирает данные о системе в runtime. Портабельный, можно скидывать другим.
+
+NOW_TIME="$(date '+%H:%M')"
+
+if command -v hostname &>/dev/null; then
+    GREET_HOST="$(hostname)"
+elif [[ -f /etc/hostname ]]; then
+    GREET_HOST="$(</etc/hostname)"
+else
+    GREET_HOST="unknown"
+fi
+
+if [[ -f /etc/os-release ]]; then
+    . /etc/os-release
+    GREET_DISTRO="${PRETTY_NAME:-$NAME}"
+    DISTRO_ID="${ID:-unknown}"
+else
+    GREET_DISTRO="$(uname -o 2>/dev/null || echo 'Unknown OS')"
+    DISTRO_ID="unknown"
+fi
+
+GREET_KERNEL="$(uname -r)"
+
+GREET_CPU="$(awk -F': ' '/model name/{print $2; exit}' /proc/cpuinfo 2>/dev/null)"
+[[ -z "$GREET_CPU" ]] && GREET_CPU="$(uname -m)"
+
+GREET_CORES="$(nproc 2>/dev/null || echo '?')"
+
+read -r MEM_TOTAL MEM_USED MEM_FREE MEM_BUF <<< "$(awk '/MemTotal/{t=$2} /MemAvailable/{a=$2} END{printf "%d %d %d 0", t, t-a, a}' /proc/meminfo 2>/dev/null)"
+if [[ -n "$MEM_TOTAL" && "$MEM_TOTAL" -gt 0 ]]; then
+    MEM_TOTAL_GB="$(awk "BEGIN{printf \"%.1f\", $MEM_TOTAL/1048576}")"
+    MEM_USED_GB="$(awk "BEGIN{printf \"%.1f\", $MEM_USED/1048576}")"
+    GREET_RAM="${MEM_USED_GB}G / ${MEM_TOTAL_GB}G"
+else
+    GREET_RAM="N/A"
+fi
+
+GREET_GPU="$(glxinfo 2>/dev/null | grep -oP 'OpenGL renderer string: \K.*' | sed 's/ (.*//')"
+if [[ -z "$GREET_GPU" ]]; then
+    GREET_GPU="$(vulkaninfo 2>/dev/null | grep -oP 'deviceName\s*=\s*\K.*' | head -1)"
+fi
+if [[ -z "$GREET_GPU" ]]; then
+    GREET_GPU="$(lspci 2>/dev/null | grep -i 'vga\|3d\|display' | head -1 | sed 's/.*: //' | sed 's/ (rev.*//')"
+fi
+[[ -z "$GREET_GPU" ]] && GREET_GPU="N/A"
+(( ${#GREET_GPU} > 45 )) && GREET_GPU="${GREET_GPU:0:42}..."
+
+UPTIME_SEC="$(awk '{print int($1)}' /proc/uptime 2>/dev/null)"
+if [[ -n "$UPTIME_SEC" ]]; then
+    DAYS=$(( UPTIME_SEC / 86400 ))
+    HOURS=$(( (UPTIME_SEC % 86400) / 3600 ))
+    MINS=$(( (UPTIME_SEC % 3600) / 60 ))
+    GREET_UPTIME=""
+    (( DAYS > 0 )) && GREET_UPTIME="${DAYS}d "
+    GREET_UPTIME+="${HOURS}h ${MINS}m"
+else
+    GREET_UPTIME="N/A"
+fi
+
+GREET_PACKAGES="$(pacman -Q 2>/dev/null | wc -l)"
+[[ "$GREET_PACKAGES" == "0" ]] && GREET_PACKAGES="$(dpkg -l 2>/dev/null | grep '^ii' | wc -l)"
+[[ "$GREET_PACKAGES" == "0" ]] && GREET_PACKAGES="$(rpm -qa 2>/dev/null | wc -l)"
+[[ "$GREET_PACKAGES" == "0" ]] && GREET_PACKAGES="N/A"
+[[ "$GREET_PACKAGES" != "N/A" ]] && GREET_PACKAGES="${GREET_PACKAGES} (pacman)"
+
+GREET_SHELL="${SHELL##*/}"
+if [[ -n "$ZSH_VERSION" && "$SHELL" == */zsh ]]; then
+    GREET_SHELL="zsh $ZSH_VERSION"
+elif [[ -n "$BASH_VERSION" && "$SHELL" == */bash ]]; then
+    GREET_SHELL="bash $BASH_VERSION"
+fi
+
+GREET_RES="$(xrandr 2>/dev/null | grep -oP '\d+x\d+' | head -1)"
+[[ -z "$GREET_RES" ]] && GREET_RES="$(cat /sys/class/drm/card*/status 2>/dev/null | head -1)"
+[[ -z "$GREET_RES" ]] && GREET_RES="N/A"
+
+GREET_DE="${XDG_CURRENT_DESKTOP:-$DESKTOP_SESSION}"
+[[ -z "$GREET_DE" ]] && GREET_DE="$(ps -eo comm= -C startplasma-x11 2>/dev/null | head -1)"
+[[ -z "$GREET_DE" ]] && GREET_DE="$(ps -eo comm= -C gnome-shell 2>/dev/null | head -1)"
+[[ -z "$GREET_DE" ]] && GREET_DE="$(ps -eo comm= -C xfce4-session 2>/dev/null | head -1)"
+[[ -z "$GREET_DE" ]] && GREET_DE="N/A"
+
+GREET_WM="N/A"
+if pgrep -x mutter >/dev/null 2>&1 || pgrep -x gnome-shell >/dev/null 2>&1; then
+    GREET_WM="Mutter (GNOME)"
+elif [[ -n "$I3SOCK" ]] || ps -eo comm= 2>/dev/null | grep -qi '^i3$'; then
+    GREET_WM="i3"
+elif pgrep -x hyprland >/dev/null 2>&1; then
+    GREET_WM="Hyprland"
+elif pgrep -x sway >/dev/null 2>&1; then
+    GREET_WM="Sway"
+elif pgrep -x bspwm >/dev/null 2>&1; then
+    GREET_WM="bspwm"
+elif pgrep -x dwm >/dev/null 2>&1; then
+    GREET_WM="dwm"
+elif pgrep -x openbox >/dev/null 2>&1; then
+    GREET_WM="Openbox"
+elif pgrep -x kwin >/dev/null 2>&1; then
+    GREET_WM="KWin"
+elif pgrep -x Marco >/dev/null 2>&1; then
+    GREET_WM="Marco"
+elif pgrep -x xfwm4 >/dev/null 2>&1; then
+    GREET_WM="Xfwm4"
+fi
+
+GREET_TERM="${TERM_PROGRAM:-$TERM}"
+[[ -n "$KONSOLE_VERSION" ]] && GREET_TERM="Konsole"
+[[ -n "$ALACRITTY_SOCKET" || "$TERM" == "alacritty" ]] && GREET_TERM="Alacritty"
+[[ "$TERM" == "xterm-kitty" ]] && GREET_TERM="kitty"
+[[ -n "$VTE_VERSION" ]] && [[ "$GREET_TERM" == "$TERM" ]] && GREET_TERM="VTE-based"
+
+GREET_THEME="${GTK_THEME:-N/A}"
+[[ -z "$GREET_THEME" || "$GREET_THEME" == "N/A" ]] && GREET_THEME="$(gsettings get org.gnome.desktop.interface gtk-theme 2>/dev/null | tr -d "'")"
+[[ -z "$GREET_THEME" || "$GREET_THEME" == "" ]] && GREET_THEME="N/A"
+
+GREET_GPU_TEMP="$(cat /sys/class/drm/card*/device/hwmon/hwmon*/temp1_input 2>/dev/null | head -1)"
+if [[ -n "$GREET_GPU_TEMP" ]]; then
+    GREET_GPU_TEMP="$(( GREET_GPU_TEMP / 1000 ))°C"
+else
+    GREET_GPU_TEMP="N/A"
+fi
+
+GREET_DATE="$(date '+%a %d %b %Y')"
+
+C='\033[38;5;141m'
+C2='\033[38;5;147m'
+R='\033[0m'
+
+BANNER=(
+'█   █ █   █  ███  █████ █  ████   █████ █   █ █████   █████ █████ █   █ █████  ███   ███   ███ '
+'█   █ █   █ █   █   █   █ █         █   █   █ █         █     █   ██ ██ █     █  █  █  █  █  █ '
+'█ █ █ █████ █████   █      ███      █   █████ ████      █     █   █ █ █ ████    █     █     █  '
+'██ ██ █   █ █   █   █         █     █   █   █ █         █     █   █   █ █                      '
+'█   █ █   █ █   █   █     ████      █   █   █ █████     █   █████ █   █ █████   █     █     █  '
+)
+
+# ── Neofetch logos ────────────────────────────────────────────────────────────
+get_logo() {
+    case "$1" in
+        arch)
+            readarray -t LOGO <<'LOGOEOF'
+                   -`
+                  .o+`
+                 `ooo/
+                `+oooo:
+               `+oooooo:
+               -+oooooo+:
+             `/:-:++oooo+:
+            `/+++++++++++++:
+           `/+++++++++++++++:
+          `/+++oooooooooooooo/
+         ./osssssssssssssssso+`
+        .oossssso-````/osssss+`
+       -osssssso.      :ssssssso.
+      :osssssss/        osssso+++.
+     /ossssssss/        +ssssooo/-
+   `/ossssso+/:-        -:/+osssso+-
+  `+sso+:-`                 `.-/+oso:
+ `++:.                           `-/+/
+ .`                                 `/
+LOGOEOF
+            ;;
+        ubuntu)
+            readarray -t LOGO <<'LOGOEOF'
+            .-/+oossssoo+-.
+        `:+ssssssssssssssssss+:`
+      -+ssssssssssssssssssyyssss+-
+    .ossssssssssssssssssdMMMNysssso.
+   /sssssssssshdmmNNmmyNMMMMhssssss\
+  +sssssssshm yd MMMMMMMddddy sssssss+
+ /sssssssshNMMMyhhhyhmNMMMNhssssssss/
+.ssssssssdMMMNhssssssssss hNMMMdssssss.
++ssss  hhhyNMMNyssssssssss yNMMMysssssss+
+oss yNMMMNyMMhssssssssssss hmmmhssssssso
+oss yNMMMNyMMhssssssssssssshmmmhssssssso
++ssss  hhhyNMMNyssssssssss yNMMMysssssss+
+.sssssssdMMMNhssssssssss hNMMMdssssss.
+ /sssssssshNMMMyhhhyhdNMMMNhssssssss/
+  +ssssssssdm yd MMMMMMMddddy sssssss+
+   /sssssssssshdmmNNmyNMMMMhssssss/
+    .ossssssssssssssssssdMMMNysssso.
+      -+sssssssssssssssyyyssss+-
+        `:+ssssssssssssssssss+:`
+            .-\+oossssoo+-.
+LOGOEOF
+            ;;
+        fedora)
+            readarray -t LOGO <<'LOGOEOF'
+             .,;::::;,.
+          .';cccccccccccc:;,.
+       .;cccccccccccccccccccccc;.
+     .:cccccccccccccccccccccccccc:.
+   .;cccccccccccc;. .:dddl:. ;ccccccc;.
+  .:cccccccccccc;OWMKOOXMWd;ccccccc:.
+ .:ccccccccccccc;KMMc ;cc; xMMc ;ccccccc:.
+,cccccccccccccc;MMM. ;cc; ;WW: ;cccccccc,
+:cccccccccccccc;MMM. ;cccccccccccccccc:
+:ccccccc;oxOOOo;MMM0OOk.;cccccccccccc:
+cccccc;0MMKxdd:;MMMkddc.;cccccccccccc;
+cccccc;XM0';cccc;MMM. ;ccccccccccccccc
+cccccc;MMo;ccccc;MMW. ;cccccccccccccc;
+cccccc;0MNc. ccc .xMMd;cccccccccccccc;
+ccccccc;dNMWXXXWM0:;cccccccccccccc:,.
+ccccccccc;..:odl:.;cccccccccccccc:,...
+:cccccccccccccccccccccccccccc:.
+.:cccccccccccccccccccccc:;,...
+  ::cccccccccccccc::;,...
+LOGOEOF
+            ;;
+        debian)
+            readarray -t LOGO <<'LOGOEOF'
+       _,met$$$$$gg.
+    ,g$$$$$$$$$$$$$$$P.
+  ,g$$P"        """Y$$.".
+ ,$$P`              `$$$.`
+',$$P       ,ggs.     `$$b:
+`d$$`     ,$P"`   .    $$$
+ $$P      d$`     ,    $$P
+ $$:      $$.   -    ,d$$`
+ $$;      Y$b._   _,d$P``
+ Y$$.    .`."`Y$$$$P"
+ `$$b      "-.__
+  `Y$$
+    `Y$$.
+      `$$b.
+        `Y$$b.
+           `"Y$b._
+               `"`"`
+LOGOEOF
+            ;;
+        manjaro)
+            readarray -t LOGO <<'LOGOEOF'
+████████████████████  ████████
+██████████████████  ████████
+██████████████████  ████████
+██████████████████  ████████
+████████            ████████
+████████  ████████  ████████
+████████  ████████  ████████
+████████  ████████  ████████
+████████  ████████  ████████
+████████  ████████  ████████
+████████  ████████  ████████
+████████  ████████  ████████
+████████  ████████  ████████
+████████  ████████  ████████
+LOGOEOF
+            ;;
+        mint)
+            readarray -t LOGO <<'LOGOEOF'
+             ...-:::::-...
+          .-MMMMMMMMMMMMMMM-.
+       .-MMMM`..-:::::::-..`MMMM-.
+     .:MMMM.:MMMMMMMMMMMMMMM:.MMMM:.
+    -MMM-M---MMMMMMMMMMMMMMMMMMM.MMM-
+  `:MMM:MM`  :MMMM:....::-...-MMMM:MMM:`
+  :MMM:MMM`  :MM:`  ``    ``  `:MMM:MMM:
+ .MMM.MMMM`  :MM.  -MM.  .MM-  `MMMM.MMM.
+ :MMM:MMMM`  :MM.  -MM-  .MM:  `MMMM-MMM:
+ :MMM:MMMM`  :MM.  -MM-  .MM:  `MMMM:MMM:
+ :MMM:MMMM`  :MM.  -MM-  .MM:  `MMMM-MMM:
+ .MMM.MMMM`  :MM:--:MM:--:MM:  `MMMM.MMM.
+  :MMM:MMM-  `-MMMMMMMMMMMM-`  -MMM-MMM:
+   :MMM:MMM:`                `:MMM:MMM:
+    .MMM.MMMM:--------------:MMMM.MMM.
+      `-MMMM.-MMMMMMMMMMMMMMM-.MMMM-
+        `.-MMMM``--:::::--``MMMM-.
+            `-MMMMMMMMMMMMM-`
+               ``-:::::-``
+LOGOEOF
+            ;;
+        opensuse*|suse*)
+            readarray -t LOGO <<'LOGOEOF'
+           .;ldkO0000Okdl;.
+        .;d00xl:^''''''^:ok00d;.
+      .d00l'                'o00d.
+    .d0Kd'  Okxol:;,.          :O0d.
+   .OKKKK0kOKKKKKKKKKKOxo:,      lKO.
+  ,0KKKKKKKKKKKKKKK0P^,,,^dx:    ;00,
+ .OKKKKKKKKKKKKKKKk'.oOPPb.'0k.   cKO.
+ :KKKKKKKKKKKKKKK: kKx..dd lKd   'OK:
+ dKKKKKKKKKKOx0KKKd ^0KKKO' kKKc   dKd
+ dKKKKKKKKKK;.;oOKx,....;kKKK0.  dKd
+ :KKKKKKKKKK0o;...^cdxxOK0O/^^'  .0K:
+  kKKKKKKKKKKKKK0x;,,......,;od  lKk
+  '0KKKKKKKKKKKKKKKKKKK00KKOo^  c00'
+   'kKKKOxddxkOO00000Okxoc;'   .dKk'
+    l0Ko.                    .c00l'
+     'l0Kk:.              .;xK0l'
+        'lkK0xl:;,,,,;:ldO0kl'
+            '^:ldxkkkkxdl:^'
+LOGOEOF
+            ;;
+        centos|rhel|rocky|almalinux)
+            readarray -t LOGO <<'LOGOEOF'
+                 ..
+                .PLTJ.
+               <><><><>
+     KKSSV` 4KKK LJ  KKKL.`VSSKK
+     KKV` 4KKKKK LJ  KKKKAL `VKK
+     V` ` `VKKKK LJ  KKKKV` ` `V
+     .4MA.` `VKK LJ  KKV` `.4Mb.
+   . KKKKKA.` `V LJ  V` `.4KKKKK .
+  .4D KKKKKKKA.`LJ`.4KKKKK FA.
+<QDD ++++++++++++  ++++++++++++ GFD>
+ `VD KKKKKKKK`.LJ..KKKKKKK FV
+   ` VKKKK`. .4 LJ K. .KKKKKV`
+     `VK`. .4KK LJ KKA. .KV`
+     A. . .4KKKK LJ KKKKA. . .4
+     KKA. `KKKKK LJ KKKKK` .4KK
+     KKSSA. VKKK LJ KKKV .4SSKK
+              <><><><>
+                `MKKM`
+                  ```
+LOGOEOF
+            ;;
+        void)
+            readarray -t LOGO <<'LOGOEOF'
+                __.;=====;.__
+             _.=+==++=++=+=+===;.
+              -=+++=+===+=+=+++++=_
+         .     -=:``     `--==+=++==.
+        _vi,    `            --+=++++:
+       .uvnvi.       _._       -==+==+.
+      .vvnvnI`    .;==|==;.     :|=||=|.
+ +QmQQmpvvnv; _yYsyQQWUUQQQm #QmQ#:QQQWUV$QQm.
+  -QQWQWpvwoZ?.wQQQE==<QWWQ/QWQW.QQWW(: jQWQE
+   -$QQQQmmU`  jQQQ@+=<QWQQ)mQQQ.mQQQC+;jWQQ@'
+    -$WQ8YnI:   QWQQwgQQWV`mWQQ.jQWQQgyyWW@!
+      -1vvnvv.     `~+++`        ++|+++
+        +vnvnnv,                 `-|===
+         +vnvnvns.           .      :=-
+          -Invnvvnsi..___..=sv=.     `
+            +Invnvnvnnnnnnnnvvnn;.
+              ~|Invnvnvvnvvvnnv}+`
+                 -~|{*l}*|~
+LOGOEOF
+            ;;
+        alpine)
+            readarray -t LOGO <<'LOGOEOF'
+       .hddddddddddddddddddddddh.
+      :dddddddddddddddddddddddddd:
+     /dddddddddddddddddddddddddddd/
+    +dddddddddddddddddddddddddddddd+
+  `sdddddddddddddddddddddddddddddddds`
+ `ydddddddddddd++hdddddddddddddddddddy`
+.hddddddddddd+`  `+ddddh:-sdddddddddddh.
+hdddddddddd+`      `+y:    .sddddddddddh
+ddddddddh+`   `//`   `.`     -sddddddddd
+ddddddh+`   `/hddh/`   `:s-    -sddddddd
+ddddh+`   `/+/dddddh/`   `+s-    -sddddd
+ddd+`   `/o` :dddddddh/`   `oy-    .yddd
+hdddyo+ohddyosdddddddddho+oydddy++ohdddh
+.hddddddddddddddddddddddddddddddddddddh.
+ `yddddddddddddddddddddddddddddddddddy
+  `sdddddddddddddddddddddddddddddddds
+    +dddddddddddddddddddddddddddddd+
+     /dddddddddddddddddddddddddddd/
+      :dddddddddddddddddddddddddd:
+       .hddddddddddddddddddddddh.
+LOGOEOF
+            ;;
+        nixos)
+            readarray -t LOGO <<'LOGOEOF'
+          ▗▄▄▄       ▗▄▄▄▄    ▄▄▄▖
+          ▜███▙       ▜███▙  ▟███▛
+           ▜███▙       ▜███▙▟███▛
+            ▜███▙       ▜██████▛
+     ▟█████████████████▙ ▜████▛     ▟▙
+    ▟███████████████████▙ ▜███▙    ▟██▙
+           ▄▄▄▄▖           ▜███▙  ▟███▛
+          ▟███▛             ▜██▛ ▟███▛
+         ▟███▛               ▜▛ ▟███▛
+▟███████████▛                  ▟██████████▙
+▜██████████▛                  ▟███████████▛
+      ▟███▛ ▟▙               ▟███▛
+     ▟███▛ ▟██▙             ▟███▛
+    ▟███▛  ▜███▙           ▝▀▀▀▀
+    ▜██▛    ▜███▙ ▜██████████████████▛
+     ▜▛     ▟████▙ ▜████████████████▛
+           ▟██████▙       ▜███▙
+          ▟███▛▜███▙       ▜███▙
+         ▟███▛  ▜███▙       ▜███▙
+         ▝▀▀▀    ▀▀▀▀▘       ▀▀▀▘
+LOGOEOF
+            ;;
+        gentoo)
+            readarray -t LOGO <<'LOGOEOF'
+         -/oyddmdhs+:.
+      -odNMMMMMMMMNNmhy+-
+    -yNMMMMMMMMMMMNNNmmdhy+-
+  `omMMMMMMMMMMMMNmdmmmmddhhy/`
+  omMMMMMMMMMMMNhhyyyohmdddhhhhd
+.ydMMMMMMMMMMdhs++so/smdddhhhhdm+`
+ oyhdmNMMMMMMMNdyooydmddddhhhhyhNd.
+  :oyhhdNNMMMMMMMNNNmmdddhhhhhyymh
+    .:+sydNMMMMMNNNmmmdddhhhhhhmMmy
+       /mMMMMMMNNNmmmdddhhhhhmNHs:
+    `oNMMMMMMMNNNmmmddddhhdmNhs+`
+  `sNMMMMMMMMNNNmmmdddddmNMmhs/.
+ /NMMMMMMMMNNNNmmmdddmNMNdso:`
++MMMMMMNNNNNmmmmdmNMNdso/-
+yMNNNNNNNmmmmmNNMmhs+/-`
+/hMMNNNNNNNNMNdhs++/-`
+`/ohdmmddhys+++/:-`
+  `-//////:--.
+LOGOEOF
+            ;;
+        endeavouros|endeavour)
+            readarray -t LOGO <<'LOGOEOF'
+                     ./o.
+                   .sssss-
+                 `:osssssss+-
+               `:+sssssssssso/.
+             `-/osssssssssssssso/.
+           `-/+sssssssssssssssso+:`
+         `-:/+sssssssssssssssssso+/.
+       `.://ossssssssssssssssssssso++-
+      .://+ssssssssssssssssssssssso++:
+    .:///ossssssssssssssssssssssssssso++:
+  `:////ssssssssssssssssssssssssssssso+++.
+ `-////+ssssssssssssssssssssssssssssso++++-
+  `..-+oosssssssssssssssssssssssso+++++/`
+    ./+++++++++++++++++++++++++++++++/.
+   `:::::::::::::::::::::::::------``
+LOGOEOF
+            ;;
+        artix)
+            readarray -t LOGO <<'LOGOEOF'
+                   
+                   'o'
+                  'ooo'
+                 'ooxoo'
+                'ooxxxoo'
+               'oookkxxoo'
+              'oiioxkkxxoo'
+             ':;:iiiioxxxoo'
+                `. ;::ioxxoo'
+           '-.      `:;jiooo'
+          'oooio-..     'i:io'
+         'ooooxxxxoio:.   `-;'
+        'ooooxxxxxkkxoooIi:-.  '
+       'ooooxxxxxkkkkxoiiiiiji
+      'ooooxxxxxkxxoiiii:'     .i'
+     'ooooxxxxxoi:::'       .;ioxo'
+    'ooooxooi::'         .:iiixkxxo'
+   'ooooi:'                ''ioxxo'
+  'i:'                          ':io'
+ `                                   '
+LOGOEOF
+            ;;
+        garuda)
+            readarray -t LOGO <<'LOGOEOF'
+                     .%;888:8898898:
+                   x;XxXB%89b8:b8%b88:
+                .8Xxd                8X:.
+              .8Xx;                    8x:.
+            .tt8x          .d            x88;
+         .@8x8;          .db:              xx@;
+       ,tSXX.          .bbbbbbbbbbbbbbbbbbbB8x@;
+     .SXxx            bBBBBBBBBBBBBBBBBBBBbSBX8;
+   ,888S                                     pd!
+  8X88/                                       q
+  GBB.
+     x%88        d888@8@X@X@X88X@@XX@@X@8@X.
+       dxXd    dB8b8b8B8B08bB88b998888b88x.
+        dxx8o                      .@@;.
+          dx88                   .t@x.
+            d:SS@8ba89aa67a853Sxxad.
+              .d988999889889899dd.
+LOGOEOF
+            ;;
+        zorin)
+            readarray -t LOGO <<'LOGOEOF'
+        `osssssssssssssssssssso`
+       .osssssssssssssssssssssso.
+      .+oooooooooooooooooooooooo+.
+
+
+  `::::::::::::::::::::::.         .:`
+ `+ssssssssssssssssss+:.`     `.:+ssso`
+.ossssssssssssssso/.       `-+ossssssso.
+sssssssssssssso/-`      `-/osssssssssssss
+.ossssssso/-`      .-/ossssssssssssssso.
+ `+sss+:.      `.:+ssssssssssssssssss+`
+  `:.         .::::::::::::::::::::::`
+
+
+      .+oooooooooooooooooooooooo+.
+       -osssssssssssssssssssssso-
+        `osssssssssssssssssssso`
+LOGOEOF
+            ;;
+        pop|pop-os)
+            readarray -t LOGO <<'LOGOEOF'
+             /////////////
+          /////////////////////
+       /////7676767676////////////
+     /////7676767676*//////////////
+    /////767676767676//////////////
+   /////767676///76767///////////////
+  ///////767676///76767.///7676*///////
+ /////////767676//76767///767676////////
+ ///////////76767676767////76767/////////
+ ////////////76767676//////7676//////////
+ ////////////7676/////////767///////////
+ ////////////7676/////////76////////////
+ ////////////////7676////////////////////
+  ////////////////7676///767////////////
+   //////////////////////`////////////
+    /////7676767676767676767,//////
+     /////767676767676767676767/////
+       ///////////////////////////
+          /////////////////////
+              /////////////
+LOGOEOF
+            ;;
+        *)
+            readarray -t LOGO <<'LOGOEOF'
+       /\           
+      /  \          
+     /    \         
+    / Linux\        
+   /   __   \       
+  /   /  \   \      
+ /___/____\___\     
+LOGOEOF
+            ;;
+    esac
+}
+
+get_logo "$DISTRO_ID"
+
+W=50
+LOGO_W=26
+GAP=4
+
+print_line() {
+    local label="$1" value="$2"
+    local inner=$((W - 4))
+    local max_val=$((inner - 10))
+    if (( ${#value} > max_val )); then
+        value="${value:0:$((max_val - 3))}..."
+    fi
+    local content
+    content="$(printf '%-10s%s' "$label" "$value")"
+    local pad=$((inner - ${#content}))
+    printf "${C}│${R}  ${C2}%-10s${R}%s" "$label" "$value"
+    printf '%*s' "$pad" ""
+    printf "${C}│${R}"
+}
+
+print_logo_line() {
+    local idx="$1"
+    if (( idx < ${#LOGO[@]} )); then
+        printf "%*s${C}%s${R}" "$GAP" "" "${LOGO[$idx]}"
+    fi
+}
+
+echo ""
+
+for line in "${BANNER[@]}"; do
+    echo -e "  ${C}${line}${R}"
+done
+
+echo ""
+echo -e "  ${C}  $NOW_TIME${R}"
+echo ""
+
+INFOLINES=(
+    "PC:|$GREET_HOST"
+    "Distro:|$GREET_DISTRO"
+    "Kernel:|$GREET_KERNEL"
+    "CPU:|$GREET_CPU ($GREET_CORES cores)"
+    "RAM:|$GREET_RAM"
+    "GPU:|$GREET_GPU"
+    "GPU Temp:|$GREET_GPU_TEMP"
+    "Packages:|$GREET_PACKAGES"
+    "Shell:|$GREET_SHELL"
+    "Terminal:|$GREET_TERM"
+    "Res:|$GREET_RES"
+    "DE:|$GREET_DE"
+    "WM:|$GREET_WM"
+    "Theme:|$GREET_THEME"
+    "Date:|$GREET_DATE"
+)
+
+for i in "${!INFOLINES[@]}"; do
+    IFS='|' read -r label value <<< "${INFOLINES[$i]}"
+    print_line "$label" "$value"
+    print_logo_line "$i"
+    echo ""
+done
+
+for (( i=${#INFOLINES[@]}; i<${#LOGO[@]}; i++ )); do
+    printf "%*s" $((W + 2)) ""
+    print_logo_line "$i"
+    echo ""
+done
+
+echo ""
+echo -e "  ${C}$(printf '═%.0s' $(seq 1 $W))${R}"
+echo ""

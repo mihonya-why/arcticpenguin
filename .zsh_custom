@@ -1,0 +1,139 @@
+# ── Кастомный промпт ─────────────────────────────────────────────────────────
+setopt PROMPT_SUBST
+
+# ── Autosuggestions (полупрозрачные подсказки) ───────────────────────────────
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=240'
+
+# ── Меню дополнения (Tab) ────────────────────────────────────────────────────
+autoload -Uz compinit && compinit
+zstyle ':completion:*' menu select
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
+
+__prompt_host="%B%F{141}%m%f%b"
+__prompt_sep="%F{147}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%f"
+__prompt_arrow="%B%F{141}❯%f%b"
+
+__build_prompt() {
+    local sudo_tag=""
+    [[ -n "$SUDO_USER" ]] && sudo_tag="%F{168} [sudo]%f"
+    PROMPT='
+${__prompt_sep}
+${__prompt_host} %F{175}%~%f'"${sudo_tag}"'
+${__prompt_arrow} '
+
+    local _gpu_temp="$(cat /sys/class/drm/card*/device/hwmon/hwmon*/temp1_input 2>/dev/null | head -1)"
+    [[ -n "$_gpu_temp" ]] && _gpu_temp="$(( _gpu_temp / 1000 ))°C" || _gpu_temp=""
+
+    local _up=""
+    local _up_sec="$(awk '{print int($1)}' /proc/uptime 2>/dev/null)"
+    if [[ -n "$_up_sec" ]]; then
+        local _d=$(( _up_sec / 86400 ))
+        local _h=$(( (_up_sec % 86400) / 3600 ))
+        local _m=$(( (_up_sec % 3600) / 60 ))
+        (( _d > 0 )) && _up="${_d}d "
+        _up+="${_h}h${_m}m"
+    fi
+
+    local _rprompt="%F{141}%*%f"
+    [[ -n "$_gpu_temp" ]] && _rprompt+=" %F{243}│%f %F{147}gpu:${_gpu_temp}%f"
+    _rprompt+=" %F{243}│%f %F{147}up:%f${_up}"
+
+    RPROMPT="$_rprompt"
+}
+
+precmd_functions+=(__build_prompt)
+
+# ── Функция extract ──────────────────────────────────────────────────────────
+# Универсальный распаковщик: extract file.tar.gz
+extract() {
+    if [[ ! -f "$1" ]]; then
+        echo "extract: '$1' не найден" >&2
+        return 1
+    fi
+
+    case "$1" in
+        *.tar.bz2)  tar xjf "$1"   ;;
+        *.tar.gz)   tar xzf "$1"   ;;
+        *.tar.xz)   tar xJf "$1"   ;;
+        *.tar.zst)  tar --zstd -xf "$1" ;;
+        *.tar.lz)   tar --lzip -xf "$1" ;;
+        *.tar.lzma) tar --lzma -xf "$1" ;;
+        *.tar.lzo)  tar --lzo -xf "$1" ;;
+        *.tar)      tar xf "$1"    ;;
+        *.bz2)      bunzip2 "$1"   ;;
+        *.rar)      unrar x "$1"   ;;
+        *.gz)       gunzip "$1"    ;;
+        *.lz)       lzip -d "$1"   ;;
+        *.lzma)     unlzma "$1"    ;;
+        *.lzo)      lzop -d "$1"   ;;
+        *.xz)       unxz "$1"     ;;
+        *.zst)      unzstd "$1"   ;;
+        *.Z)        uncompress "$1";;
+        *.7z)       7z x "$1"     ;;
+        *.zip)      unzip "$1"    ;;
+        *.deb)      ar x "$1"     ;;
+        *.rpm)      rpm2cpio "$1" | cpio -idm ;;
+        *)
+            echo "extract: неподдерживаемый формат '$1'" >&2
+            return 1
+            ;;
+    esac
+}
+
+# ── clear с баннером ─────────────────────────────────────────────────────────
+clear() {
+    command clear
+    [[ -x "$HOME/.local/bin/sysgreet" ]] && "$HOME/.local/bin/sysgreet"
+}
+
+# ── Алиасы ───────────────────────────────────────────────────────────────────
+
+# Навигация
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+
+# ls
+alias ls='ls --color=auto'
+alias ll='ls -lah'
+alias la='ls -A'
+alias l='ls -CF'
+
+# Safety
+alias cp='cp -i'
+alias mv='mv -i'
+
+# Пропуск sudo
+alias sudo='sudo '
+
+# Быстрые команды
+alias cls='clear'
+alias h='history'
+alias j='jobs -l'
+alias path='echo -e ${PATH//:/\\n}'
+alias now='date +"%Y-%m-%d %H:%M:%S"'
+alias ports='ss -tulanp'
+alias myip='curl -s ifconfig.me'
+alias localip='ip -4 addr show | grep inet | grep -v 127.0.0.1 | awk "{print \$2}" | cut -d/ -f1'
+
+# Git
+alias gs='git status'
+alias ga='git add'
+alias gc='git commit -m'
+alias gp='git push'
+alias gl='git log --oneline --graph -10'
+alias gd='git diff'
+
+# System
+alias update='sudo pacman -Syu'
+alias install='sudo pacman -S'
+alias search='pacman -Ss'
+alias remove='sudo pacman -Rns'
+alias orphans='pacman -Qdtq'
+
+# Safety для опасных команд
+alias chown='chown --preserve-root'
+alias chmod='chmod --preserve-root'
+alias chgrp='chgrp --preserve-root'
+alias rm='rm -I --preserve-root'
