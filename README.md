@@ -1,4 +1,4 @@
-# terminal-setup
+# arcticpenguin
 
 Кастомный терминал: приветствие с баннером, системной инфой и лого дистрибутива + live-данные в промпте. Цвет темы автоматически подстраивается под дистрибутив.
 
@@ -13,8 +13,8 @@
 ## Установка
 
 ```bash
-git clone https://github.com/YOUR_USER/terminal-setup.git ~/terminal-setup
-cd ~/terminal-setup
+git clone https://github.com/YOUR_USER/arcticpenguin.git ~/arcticpenguin
+cd ~/arcticpenguin
 ./install.sh
 source ~/.zshrc
 ```
