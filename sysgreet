@@ -141,6 +141,10 @@ get_theme_color() {
             C='\033[38;5;81m'
             C2='\033[38;5;117m'
             ;;
+        blackarch)
+            C='\033[38;5;165m'
+            C2='\033[38;5;177m'
+            ;;
         artix)
             C='\033[38;5;39m'
             C2='\033[38;5;75m'
@@ -216,6 +220,29 @@ get_theme_color() {
 get_logo() {
     case "$1" in
         arch)
+            readarray -t LOGO <<'LOGOEOF'
+                   -`
+                  .o+`
+                 `ooo/
+                `+oooo:
+               `+oooooo:
+               -+oooooo+:
+             `/:-:++oooo+:
+            `/+++++++++++++:
+           `/+++++++++++++++:
+          `/+++oooooooooooooo/
+         ./osssssssssssssssso+`
+        .oossssso-````/osssss+`
+       -osssssso.      :ssssssso.
+      :osssssss/        osssso+++.
+     /ossssssss/        +ssssooo/-
+   `/ossssso+/:-        -:/+osssso+-
+  `+sso+:-`                 `.-/+oso:
+ `++:.                           `-/+/
+ .`                                 `/
+LOGOEOF
+            ;;
+        blackarch)
             readarray -t LOGO <<'LOGOEOF'
                    -`
                   .o+`
