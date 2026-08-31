@@ -1,12 +1,12 @@
 # terminal-setup
 
-Кастомный терминал: приветствие с баннером, системной инфой и лого дистрибутива + live-данные в промпте.
+Кастомный терминал: приветствие с баннером, системной инфой и лого дистрибутива + live-данные в промпте. Цвет темы автоматически подстраивается под дистрибутив.
 
 ## Что ставится
 
 | Компонент | Описание |
 |-----------|----------|
-| `sysgreet` | Баннер "WHAT'S THE TIME???" + системная панель (PC, Distro, Kernel, CPU, RAM, GPU, Packages...) + лого из neofetch |
+| `sysgreet` | Баннер "ARCTIC PENGUIN" + системная панель (PC, Distro, Kernel, CPU, RAM, GPU, Packages...) + лого из neofetch + цвет под дистрибутив |
 | `.zsh_custom` | Кастомный промпт, right-prompt с live-часами/температурой/GPU, aliases, extract, completion menu |
 | zsh-plugins | `zsh-syntax-highlighting` + `zsh-autosuggestions` |
 
@@ -26,9 +26,9 @@ source ~/.zshrc
 - glxinfo (для точного определения GPU) — пакет `mesa-utils`
 - kitty / другой терминал с поддержкой 256 цветов
 
-## Поддерживаемые дистрибутивы
+## Поддерживаемые дистрибутивы (с цветовой темой)
 
-Arch, Manjaro, EndeavourOS, Garuda, Artix, Ubuntu, Debian, Pop!_OS, Zorin, Fedora, openSUSE, Void, Alpine + другие (через ручную установку плагинов).
+Arch, BlackArch, Artix, EndeavourOS, Garuda, Manjaro, Ubuntu, Debian, Pop!_OS, Zorin, Fedora, openSUSE/SUSE, CentOS/RHEL/Rocky/AlmaLinux, Void, Alpine, NixOS, Gentoo, Linux Mint + другие (с лого и цветом по умолчанию для оставшихся).
 
 ## Структура
 
@@ -42,25 +42,32 @@ Arch, Manjaro, EndeavourOS, Garuda, Artix, Ubuntu, Debian, Pop!_OS, Zorin, Fedor
 ## Что показывает sysgreet
 
 ```
-  █   █ █   █  ███  █████ █  ████   █████ █   █ █████   █████ █████ █   █ █████  ███   ███   ███
-  ...
+   ███  ████   ███  █████ ███  ███     ████  █████ █   █  ███  █   █ ███ █   █
+  █   █ █   █ █       █    █  █        █   █ █     ██  █ █     █   █  █  ██  █
+  █████ ████  █       █    █  █        ████  ████  █ █ █ █  ██ █   █  █  █ █ █
+  █   █ █  █  █       █    █  █        █     █     █  ██ █   █ █   █  █  █  ██
+  █   █ █   █  ███    █   ███  ███     █     █████ █   █  ███   ███  ███ █   █
 
-  │  PC:       archlinux                           │    ▗▄▄▄       ▗▄▄▄▄    ▄▄▄▖
-  │  Distro:   Arch Linux                          │    ▜███▙       ▜███▙  ▟███▛
-  │  Kernel:   6.x.x                               │     ▜███▙       ▜███▙▟███▛
-  │  CPU:      AMD Ryzen 5 3600 (12 cores)         │      ▜███▙       ▜██████▛
-  │  RAM:      8.3G / 15.5G                        │
-  │  GPU:      AMD Radeon RX 570 Series            │   ▟█████████████████▙ ▜████▛
-  │  GPU Temp: 47°C                                │
-  │  Packages: 1270 (pacman)                       │
-  │  Shell:    zsh                                 │
-  │  Terminal: kitty                               │
-  │  Res:      1920x1080                           │
-  │  DE:       GNOME                               │
-  │  WM:       Mutter (GNOME)                      │
-  │  Theme:    Adwaita                             │
-  │  Date:     Tue 25 Aug 2026                     │
+  │  PC:       archlinux                           │                       -`
+  │  Distro:   Arch Linux                          │                      .o+`
+  │  Kernel:   6.x.x                               │                     `ooo/
+  │  CPU:      AMD Ryzen 5 3600 (12 cores)         │                    `+oooo:
+  │  RAM:      8.3G / 15.5G                        │                   `+oooooo:
+  │  GPU:      AMD Radeon RX 570 Series            │                   -+oooooo+:
+  │  GPU Temp: 47°C                                │                 `/:-:++oooo+:
+  │  Packages: 1270 (pacman)                       │                `/+++++++++++++:
+  │  Shell:    zsh                                 │               `/+++++++++++++++:
+  │  Terminal: kitty                               │              `/+++oooooooooooooo/
+  │  Res:      1920x1080                           │             ./osssssssssssssssso+`
+  │  DE:       GNOME                               │            .oossssso-````/osssss+`
+  │  WM:       Mutter (GNOME)                      │           -osssssso.      :ssssssso.
+  │  Theme:    Adwaita                             │          :osssssss/        osssso+++.
+  │  Date:     Mon 31 Aug 2026                     │         /ossssssss/        +ssssooo/-
 ```
+
+## Цвет под дистрибутив
+
+Цвет баннера, разделителей и промпта автоматически меняется в зависимости от дистрибутива (arch — голубой, ubuntu — оранжевый, debian — красный, fedora — синий, manjaro — зелёный, blackarch — пурпурный и т.д.).
 
 ## Live-данные в промпте
 
