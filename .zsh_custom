@@ -49,6 +49,25 @@ ${__prompt_arrow} '
 
 precmd_functions+=(__build_prompt)
 
+# ── arctic: смена цветов темы + обновление терминала ─────────────────────────
+__arctic_apply() {
+    [[ -f "$HOME/.config/sysgreet/config" ]] && . "$HOME/.config/sysgreet/config"
+    : ${THEME_MAIN:="#5f5faf"}
+    : ${THEME_ACCENT:="#af0000"}
+    __prompt_host="%B%F{${THEME_MAIN}}%m%f%b"
+    __prompt_sep="%F{${THEME_MAIN}}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%f"
+    __prompt_arrow="%B%F{${THEME_ACCENT}}❯%f%b"
+    __build_prompt
+}
+
+arctic() {
+    command arctic "$@"
+    local _rc=$?
+    __arctic_apply
+    [[ -x "$HOME/.local/bin/sysgreet" ]] && "$HOME/.local/bin/sysgreet"
+    return $_rc
+}
+
 # ── Функция extract ──────────────────────────────────────────────────────────
 # Универсальный распаковщик: extract file.tar.gz
 extract() {
