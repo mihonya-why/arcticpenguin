@@ -75,6 +75,24 @@ cp "$DOTFILES_DIR/sysgreet" ~/.local/bin/sysgreet
 chmod +x ~/.local/bin/sysgreet
 ok "sysgreet → ~/.local/bin/sysgreet"
 
+cp "$DOTFILES_DIR/arctic" ~/.local/bin/arctic
+chmod +x ~/.local/bin/arctic
+ok "arctic → ~/.local/bin/arctic"
+
+# ── Конфиг цветов ────────────────────────────────────────────────────────────
+CFG="$HOME/.config/sysgreet/config"
+if [[ ! -f "$CFG" ]]; then
+    mkdir -p "$(dirname "$CFG")"
+    cat > "$CFG" << 'EOF'
+# Цвета темы arcticpenguin. Меняй командой: arctic
+THEME_MAIN="#5f5faf"
+THEME_ACCENT="#af0000"
+EOF
+    ok "конфиг цветов → $CFG"
+else
+    ok "конфиг цветов уже есть (не тронут)"
+fi
+
 # ── .zsh_custom ──────────────────────────────────────────────────────────────
 cp "$DOTFILES_DIR/.zsh_custom" ~/.zsh_custom
 ok ".zsh_custom → ~/.zsh_custom"

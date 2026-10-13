@@ -1,19 +1,20 @@
 # arcticpenguin
 
-Кастомный терминал: приветствие с баннером, системной инфой и лого дистрибутива + live-данные в промпте. Цвет темы автоматически подстраивается под дистрибутив.
+Кастомный терминал: приветствие с системной инфой и лого дистрибутива + live-данные в промпте. Цвет темы настраивается командой `arctic`.
 
 ## Что ставится
 
 | Компонент | Описание |
 |-----------|----------|
-| `sysgreet` | Баннер "ARCTIC PENGUIN" + системная панель (PC, Distro, Kernel, CPU, RAM, GPU, Packages...) + лого из neofetch + цвет под дистрибутив |
+| `sysgreet` | Системная панель (PC, Distro, Kernel, CPU, RAM, GPU, Packages...) + лого из neofetch + настраиваемый цвет |
 | `.zsh_custom` | Кастомный промпт, right-prompt с live-часами/температурой/GPU, aliases, extract, completion menu |
+| `arctic` | Интерактивный выбор цвета темы (основной + акцент) из hex-палитры |
 | zsh-plugins | `zsh-syntax-highlighting` + `zsh-autosuggestions` |
 
 ## Установка
 
 ```bash
-git clone https://github.com/YOUR_USER/arcticpenguin.git ~/arcticpenguin
+git clone https://github.com/mihonya-why/arcticpenguin.git ~/arcticpenguin
 cd ~/arcticpenguin
 ./install.sh
 source ~/.zshrc
@@ -24,17 +25,28 @@ source ~/.zshrc
 - zsh
 - oh-my-zsh
 - glxinfo (для точного определения GPU) — пакет `mesa-utils`
-- kitty / другой терминал с поддержкой 256 цветов
+- терминал с поддержкой truecolor (24-bit), например kitty
 
-## Поддерживаемые дистрибутивы (с цветовой темой)
+## Цвета темы
 
-Arch, BlackArch, Artix, EndeavourOS, Garuda, Manjaro, Ubuntu, Debian, Pop!_OS, Zorin, Fedora, openSUSE/SUSE, CentOS/RHEL/Rocky/AlmaLinux, Void, Alpine, NixOS, Gentoo, Linux Mint + другие (с лого и цветом по умолчанию для оставшихся).
+Цвета хранятся в `~/.config/sysgreet/config` и меняются командой `arctic`:
+
+```bash
+arctic                 # интерактивный выбор основного и акцентного цвета
+arctic --show          # показать текущие цвета
+arctic --main "#5f5faf"
+arctic --accent "#af0000"
+arctic --reset         # вернуть значения по умолчанию
+```
+
+Принимаются hex (`#rrggbb`) и номера 256-палитры. Один и тот же конфиг используют и `sysgreet`, и промпт.
 
 ## Структура
 
 ```
 ├── install.sh       # скрипт установки
 ├── sysgreet         # приветствие (bash)
+├── arctic           # настройка цветов темы
 ├── .zsh_custom      # промпт, aliases, live-данные
 └── README.md
 ```
@@ -42,12 +54,6 @@ Arch, BlackArch, Artix, EndeavourOS, Garuda, Manjaro, Ubuntu, Debian, Pop!_OS, Z
 ## Что показывает sysgreet
 
 ```
-   ███  ████   ███  █████ ███  ███     ████  █████ █   █  ███  █   █ ███ █   █
-  █   █ █   █ █       █    █  █        █   █ █     ██  █ █     █   █  █  ██  █
-  █████ ████  █       █    █  █        ████  ████  █ █ █ █  ██ █   █  █  █ █ █
-  █   █ █  █  █       █    █  █        █     █     █  ██ █   █ █   █  █  █  ██
-  █   █ █   █  ███    █   ███  ███     █     █████ █   █  ███   ███  ███ █   █
-
   │  PC:       archlinux                           │                       -`
   │  Distro:   Arch Linux                          │                      .o+`
   │  Kernel:   6.x.x                               │                     `ooo/
@@ -64,10 +70,6 @@ Arch, BlackArch, Artix, EndeavourOS, Garuda, Manjaro, Ubuntu, Debian, Pop!_OS, Z
   │  Theme:    Adwaita                             │          :osssssss/        osssso+++.
   │  Date:     Mon 31 Aug 2026                     │         /ossssssss/        +ssssooo/-
 ```
-
-## Цвет под дистрибутив
-
-Цвет баннера, разделителей и промпта автоматически меняется в зависимости от дистрибутива (arch — голубой, ubuntu — оранжевый, debian — красный, fedora — синий, manjaro — зелёный, blackarch — пурпурный и т.д.).
 
 ## Live-данные в промпте
 

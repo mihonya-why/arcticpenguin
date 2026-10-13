@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+# arctic — настройка цветов темы arcticpenguin
+# Интерактивный выбор основного и акцентного цвета из палитры (hex).
+# Пишет ~/.config/sysgreet/config, который читают sysgreet и zsh-промпт.
+
+CFG_DIR="$HOME/.config/sysgreet"
+CFG="$CFG_DIR/config"
+
+DEF_MAIN="#5f5faf"
+DEF_ACCENT="#af0000"
+
+[[ -f "$CFG" ]] && . "$CFG"
+MAIN="${THEME_MAIN:-$DEF_MAIN}"
+ACCENT="${THEME_ACCENT:-$DEF_ACCENT}"
+
+# ── Палитра (имя:hex) ─────────────────────────────────────────────────────────
+PALETTE=(
+    "тёмно-фиолетовый:#5f005f"
+    "фиолетовый:#5f5faf"
+    "сине-фиолетовый:#5f5fd7"
+    "средний фиолетовый:#875fd7"
+    "лаванда:#af87ff"
+    "светлая лаванда:#d7afff"
+    "кровь:#870000"
+    "тёмно-красный:#af0000"
+    "красный:#d70000"
+    "алый:#ff5f5f"
+    "розово-красный:#ff5f87"
+    "розовый:#ff87af"
+    "малиновый:#d7005f"
+    "тёмно-оранжевый:#d75f00"
+    "оранжевый:#ff8700"
+    "янтарный:#ffaf5f"
+    "золотой:#ffd75f"
+    "жёлтый:#ffff5f"
+    "оливковый:#878700"
+    "тёмно-зелёный:#005f00"
+    "зелёный:#008700"
+    "травяной:#5faf5f"
+    "мятный:#87d787"
+    "бирюзовый:#00afaf"
+    "циан:#5fd7d7"
+    "тёмно-синий:#005f87"
+    "синий:#0087af"
+    "голубой:#5fafd7"
+    "небесный:#87ceeb"
+    "индиго:#5f87ff"
+    "серый:#808080"
+    "светло-серый:#bcbcbc"
+)
+
+# ── Хелперы ───────────────────────────────────────────────────────────────────
+rgb_of() {
+    local h="${1#\#}"
+    printf '%d;%d;%d' "$((16#${h:0:2}))" "$((16#${h:2:2}))" "$((16#${h:4:2}))"
+}
+
+valid_hex() { [[ "$1" =~ ^#[0-9a-fA-F]{6}$ ]]; }
+
+swatch() { printf '\033[48;2;%sm      \033[0m' "$(rgb_of "$1")"; }
+paint()  { printf '\033[38;2;%sm%s\033[0m' "$(rgb_of "$1")" "$2"; }
+
+save_cfg() {
+    mkdir -p "$CFG_DIR"
+    cat > "$CFG" <<EOF
+# Цвета темы arcticpenguin. Меняй командой: arctic
+THEME_MAIN="$MAIN"
+THEME_ACCENT="$ACCENT"
+EOF
+}
+
+show_current() {
+    echo
+    echo "  Текущая тема:"
+    echo "    основной (${MAIN})  $(swatch "$MAIN")  $(paint "$MAIN" '████ текст ████')"
+    echo "    акцент   (${ACCENT})  $(swatch "$ACCENT")  $(paint "$ACCENT" '████ текст ████')"
+    echo
+}
+
+show_palette() {
+    local i=1 entry name hex
+    for entry in "${PALETTE[@]}"; do
+        name="${entry%%:*}"; hex="${entry##*:}"
+        printf '    %2d)  %s  %s  %s\n' "$i" "$(swatch "$hex")" "$(paint "$hex" "$(printf '%-18s' "$name")")" "$hex"
+        i=$((i+1))
+    done
+}
+
+pick() {
+    # $1 = подпись (основной/акцент), $2 = текущее значение -> возвращает hex в выбранное
+    local label="$1" current="$2" ans hex
+    echo
+    echo "  Выбери $label (сейчас $(paint "$current" "$current")):"
+    show_palette
+    printf '    %2d)  %s  %s\n' 0 "$(swatch "$current")" "оставить текущий ($current)"
+    printf '     h)  ввести свой hex (например #5f5faf)\n'
+    read -rp "  Номер/h/Enter [$label]: " ans
+
+    case "$ans" in
+        ""|'0') SELECTED="$current" ;;
+        h|H)
+            read -rp "  Введи hex: " hex
+            if valid_hex "$hex"; then SELECTED="$hex"
+            else echo "  Неверный hex, оставляю текущий."; SELECTED="$current"; fi
+            ;;
+        *[!0-9]*) echo "  Не понял, оставляю текущий."; SELECTED="$current" ;;
+        *)
+            if (( ans >= 1 && ans <= ${#PALETTE[@]} )); then
+                SELECTED="${PALETTE[$((ans-1))]##*:}"
+            else echo "  Нет такого номера, оставляю текущий."; SELECTED="$current"; fi
+            ;;
+    esac
+}
+
+preview() {
+    echo
+    echo "  Превью:"
+    printf '    %s' "$(paint "$MAIN" '╭─────────────╮')"; echo
+    printf '    %s  %s  %s\n' "$(paint "$MAIN" '│')" "$(paint "$ACCENT" 'ARCTIC PENGUIN')" "$(paint "$MAIN" '│')"
+    printf '    %s  %s  %s\n' "$(paint "$MAIN" '│')" "$(paint "$MAIN" 'основной цвет')" "$(paint "$MAIN" '│')"
+    printf '    %s  %s  %s\n' "$(paint "$MAIN" '│')" "$(paint "$ACCENT" 'акцентный цвет')" "$(paint "$MAIN" '│')"
+    printf '    %s\n' "$(paint "$MAIN" '╰─────────────╯')"
+    echo
+}
+
+# ── Разбор аргументов ─────────────────────────────────────────────────────────
+case "$1" in
+    --show)
+        show_current
+        exit 0
+        ;;
+    --reset)
+        MAIN="$DEF_MAIN"; ACCENT="$DEF_ACCENT"
+        save_cfg
+        echo "Сброшено на значения по умолчанию."
+        show_current
+        exit 0
+        ;;
+    --main)
+        valid_hex "$2" && MAIN="$2" || { echo "Неверный hex: $2"; exit 1; }
+        save_cfg; show_current; exit 0
+        ;;
+    --accent)
+        valid_hex "$2" && ACCENT="$2" || { echo "Неверный hex: $2"; exit 1; }
+        save_cfg; show_current; exit 0
+        ;;
+    -h|--help)
+        cat <<'HELP'
+arctic — настройка цветов темы arcticpenguin
+
+  arctic                 интерактивный выбор основного и акцентного цвета
+  arctic --show          показать текущие цвета
+  arctic --main #hex     задать основной цвет
+  arctic --accent #hex   задать акцентный цвет
+  arctic --reset         сбросить на значения по умолчанию
+HELP
+        exit 0
+        ;;
+esac
+
+# ── Интерактив ────────────────────────────────────────────────────────────────
+show_current
+pick "основной цвет" "$MAIN";   MAIN="$SELECTED"
+pick "акцентный цвет" "$ACCENT"; ACCENT="$SELECTED"
+preview
+save_cfg
+echo "  Сохранено в $CFG"
+echo "  Открой новый терминал (или выполни 'source ~/.zshrc') чтобы применить."

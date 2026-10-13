@@ -10,16 +10,21 @@ zstyle ':completion:*' menu select
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
 
-__prompt_host="%B%F{81}%m%f%b"
-__prompt_sep="%F{117}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%f"
-__prompt_arrow="%B%F{81}❯%f%b"
+# ── Цвета темы (общий конфиг с sysgreet) ─────────────────────────────────────
+[[ -f "$HOME/.config/sysgreet/config" ]] && . "$HOME/.config/sysgreet/config"
+: ${THEME_MAIN:="#5f5faf"}
+: ${THEME_ACCENT:="#af0000"}
+
+__prompt_host="%B%F{${THEME_MAIN}}%m%f%b"
+__prompt_sep="%F{${THEME_MAIN}}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%f"
+__prompt_arrow="%B%F{${THEME_ACCENT}}❯%f%b"
 
 __build_prompt() {
     local sudo_tag=""
-    [[ -n "$SUDO_USER" ]] && sudo_tag="%F{110} [sudo]%f"
+    [[ -n "$SUDO_USER" ]] && sudo_tag="%F{${THEME_ACCENT}} [sudo]%f"
     PROMPT='
 ${__prompt_sep}
-${__prompt_host} %F{153}%~%f'"${sudo_tag}"'
+${__prompt_host} %F{${THEME_MAIN}}%~%f'"${sudo_tag}"'
 ${__prompt_arrow} '
 
     local _gpu_temp="$(cat /sys/class/drm/card*/device/hwmon/hwmon*/temp1_input 2>/dev/null | head -1)"
@@ -35,9 +40,9 @@ ${__prompt_arrow} '
         _up+="${_h}h${_m}m"
     fi
 
-    local _rprompt="%F{81}%*%f"
-    [[ -n "$_gpu_temp" ]] && _rprompt+=" %F{243}│%f %F{117}gpu:${_gpu_temp}%f"
-    _rprompt+=" %F{243}│%f %F{117}up:%f${_up}"
+    local _rprompt="%F{${THEME_MAIN}}%*%f"
+    [[ -n "$_gpu_temp" ]] && _rprompt+=" %F{243}│%f %F{${THEME_ACCENT}}gpu:${_gpu_temp}%f"
+    _rprompt+=" %F{243}│%f %F{${THEME_ACCENT}}up:%f${_up}"
 
     RPROMPT="$_rprompt"
 }
